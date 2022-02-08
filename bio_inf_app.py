@@ -8,14 +8,46 @@ from tkinter import filedialog as fd
 from tkinter.ttk import Notebook
 from tkinter import messagebox
 from PIL import ImageTk, Image
+import Bio
+from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.SeqUtils import GC
+import Bio.SeqUtils
 
 # Functions
+entry_delete_dict = {'has_run': False}
 
 def say_hello():
 	messagebox.showinfo('You need help?', "No help to give I'm afraid!")
 
 def MouseClick(event):
 	print('The mouse was clicked')
+
+def entry_click(event):
+	if entry_delete_dict['has_run'] == False:
+		input_txt.config(state='normal')
+		input_txt.delete(1.0, END)
+	entry_delete_dict['has_run'] = True
+
+def open_file():
+	filepath = fd.askopenfilename()
+	file = open(filepath, 'r')
+	file_data = file.readlines()
+
+	# CHANGE THIS ALGORITHM AS IT'S TOO SLOW FOR THE PROGRAM. USING TOO MUCH MEMORY.
+	# MAYBE THIS SHOULD BE PART OF THE DATABASE IDEA ALSO SO THAT THE INSERTED SEQUENCE IS SAVED IN THE DATABASE INSTEAD OF IN THE SCRIPT. 
+	text_to_insert = ''
+	for x in range(1,len(file_data)):
+		line = file_data[x].strip('\n')
+		text_to_insert += line
+
+	input_txt.config(state='normal')
+	input_txt.delete(1.0, END)
+	input_txt.insert(1.0, text_to_insert)
+	input_txt.config(state='disabled')
+	entry_delete_dict['has_run'] = True
+
+	file.close()
 
 def open_plotter(event):
 
@@ -37,11 +69,74 @@ def open_plotter(event):
 def reset():
 	input_txt.config(state='normal')
 	input_txt.delete(1.0,END)
-	input_txt.config(state='disabled')
+	# input_txt.config(state='disabled')
 
 	output_txt.config(state='normal')
 	output_txt.delete(1.0,END)
 	output_txt.config(state='disabled')
+
+
+def find_gc_content():
+	input_string = input_txt.get('1.0', END).strip().upper()
+	input_intro = input_string[:10]
+	gc_string = f'The GC content for sequence "{input_intro}..." is: {round(GC(input_string),2)} %\nLength of Sequence: {len(input_string)}'
+	output_txt.config(state='normal')
+	output_txt.delete(1.0,END)
+	output_txt.insert(INSERT, gc_string)
+	output_txt.config(state='disabled')
+	# MAKE THE INSERTION OF TEXT INTO OUTPUT TEXTBOX A SUBROUTINE TO ELIMINATE THE REPEATED CODE IN ALL FUNCTIONS
+
+def reverse_comp():
+	input_string = input_txt.get('1.0', END).strip().upper()
+	input_dna = Seq(input_string)
+	rev_comp_string = input_dna.complement()
+
+	rev_comp_output_string = f'Length of Sequence: {len(input_string)} \nThe Reverse Complement is: \n\n{rev_comp_string}'
+	output_txt.config(state='normal')
+	output_txt.delete(1.0,END)
+	output_txt.insert(INSERT, rev_comp_output_string)
+	output_txt.config(state='disabled')
+
+def translate():
+	input_string = input_txt.get('1.0', END).strip().upper()
+	input_dna = Seq(input_string)
+	
+	output_protein = input_dna.transcribe().translate()
+	protein_string = f'Length of DNA Sequence: {len(input_string)} \nLength of Protein sequence: {len(output_protein)} \nThe translated protein sequence is: \n\n{output_protein}'
+	output_txt.config(state='normal')
+	output_txt.delete(1.0,END)
+	output_txt.insert(INSERT, protein_string)
+	output_txt.config(state='disabled')
+
+
+# THIS IS TO BE TAKEN OUT AND MADE INTO SEPARATE FILE FOR ALL FUNCTIONS.
+def pattern_count(text, pattern):
+	count = 0
+	for i in range(len(text) - len(pattern) + 1):
+		if text[i:i+len(pattern)] == pattern:
+			count += 1
+	return count
+
+def search_motif():
+	input_string = input_txt.get('1.0', END).strip().upper()
+	input_intro = input_string[:10]
+	motif = motif_entry.get().strip().upper()
+	clean_motif = False
+
+	for letter in motif:
+		if letter not in 'ACGT':
+			messagebox.showinfo('Motif input error', 'Please only enter base nucleotide letters: A,C,G or T')
+		else:
+			clean_motif = True
+
+	motif_count = pattern_count(input_string, motif)
+
+	motif_string = f'The motif {motif} is found {motif_count} times in the the sequence starting: "{input_intro}...".'
+	output_txt.config(state='normal')
+	output_txt.delete(1.0,END)
+	output_txt.insert(INSERT, motif_string)
+	output_txt.config(state='disabled')
+
 
 
 root = Tk()
@@ -49,12 +144,13 @@ root = Tk()
 root.title('Bioinformatics Program')
 root.resizable(False, False)
 
+input_var = StringVar(value='Add your sequence here...')
 
 
 # Menu bar and File dropdown
 menubar = Menu(root)
 filemenu = Menu(menubar, tearoff=0)
-filemenu.add_command(label='Add file')
+filemenu.add_command(label='Add file', command=open_file)
 filemenu.add_command(label='Save output')
 filemenu.add_separator()
 filemenu.add_command(label='Quit', command=root.quit)
@@ -133,8 +229,7 @@ notebook.add(protein_frame, text='Proteins')
 
 # Plotter widget for showing graphs and images.
 
-# RENAME PICTURE, PERHAPS EVENTUALLY CREATE INTO A FUNCTION.
-
+# CREATE ACLAUSE TO STOP THE WINDOW OPENING IF ONE ALREADY EXISTS
 
 default_img = ImageTk.PhotoImage(Image.open("dna.jpg").resize((150,150)))
 large_img = ImageTk.PhotoImage(Image.open('dna.jpg').resize((900,650)))
@@ -143,8 +238,6 @@ corner_plot.bind('<Button>', open_plotter)
 corner_plot.pack(side=BOTTOM, padx=5, pady=5)
 
 
-
-# IMPORT NEW WINDOW (TOPLEVEL) WIDGET TO ALLOW EXPANDED VIEW OF THE PLOT
 # POSSIBLY WITH AN OPTION TO SAVE THE PLOT AS A SEPARATE FILE?
 
 # Main frame to include text boxes, buttons and main tools.
@@ -166,20 +259,21 @@ input_txt = Text(main_frame, width=70, height=8, yscrollcommand=input_scroll.set
 input_txt.grid(row=1, columnspan=5, pady=5, sticky=N)
 
 input_scroll.config(command=input_txt.yview)
-input_txt.insert(INSERT, 'Add your sequence here.')
-input_txt.config(state='disabled')
+input_txt.insert(INSERT, 'Add your sequence here...')
+input_txt.bind('<Button-1>', entry_click)
+input_txt.config(state='disabled', font=('System'))
 
 
 
 # Middle buttons
 
-gc_btn = Button(main_frame, text="GC content")
+gc_btn = Button(main_frame, text="GC content", command=find_gc_content)
 gc_btn.grid(row=2, column=0, padx=5, pady=5)
 
-rev_comp_btn = Button(main_frame, text="Reverse Complement")
+rev_comp_btn = Button(main_frame, text="Reverse Complement", command=reverse_comp)
 rev_comp_btn.grid(row=2, column=1, padx=5, pady=5)
 
-protein_btn = Button(main_frame, text="Translate to Protein")
+protein_btn = Button(main_frame, text="Translate to Protein", command=translate)
 protein_btn.grid(row=2, column=2, padx=5, pady=5)
 
 reset_btn = Button(main_frame, text="Reset", command=reset)
@@ -188,8 +282,8 @@ reset_btn.grid(row=2, column=3, padx=5, pady=5)
 
 # Motif Search area
 
-motif_lbl = Label(main_frame, text="Enter motif:")
-motif_lbl.grid(row=3, column=0, sticky=E)
+motif_lbl = Label(main_frame, text="Search for a motif:")
+motif_lbl.grid(row=3, column=0)
 
 motif_entry = Entry(main_frame)
 motif_entry.grid(row=3, column=1, columnspan=1, padx=5, pady=5, sticky=W)
@@ -198,14 +292,14 @@ motif_entry.grid(row=3, column=1, columnspan=1, padx=5, pady=5, sticky=W)
 # POSSIBLY WITH A RADIO BUTTON?
 # POSSIBLY ADD HAMMING DISTANCE TO THE KMER SEARCH IDEA?
 
-kmer_lbl = Label(main_frame, text="K-mer")
+kmer_lbl = Label(main_frame, text="or a K-mer")
 kmer_lbl.grid(row=3, column=2, sticky=W)
 
 kmer_spin = Spinbox(main_frame, from_=0, to_=15, width=5)
-kmer_spin.grid(row=3, column=2, padx=5, pady=5)
+kmer_spin.grid(row=3, column=2, padx=5, pady=5, sticky=E)
 
-motif_search = Button(main_frame, text="Search")
-motif_search.grid(row=3, column=3)
+motif_search_btn = Button(main_frame, text="Search", command=search_motif)
+motif_search_btn.grid(row=3, column=3)
 
 
 # Output area
@@ -219,7 +313,7 @@ output_scroll.grid(row=5, column=5, sticky='NSW')
 output_txt = Text(main_frame, width=70, height=8, yscrollcommand=output_scroll.set)
 output_txt.grid(row=5, columnspan=5, padx=5, pady=5)
 output_txt.insert(INSERT, 'Your transformed sequence will appear here.')
-output_txt.config(state='disabled')
+output_txt.config(state='disabled', font=('System'))
 output_scroll.config(command=output_txt.yview)
 
 
