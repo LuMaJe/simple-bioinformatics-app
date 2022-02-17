@@ -6,19 +6,17 @@
 from tkinter import *
 from tkinter import filedialog as fd
 from tkinter.ttk import Notebook
-from tkinter import messagebox
 from PIL import ImageTk, Image
 import Bio
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqUtils import GC
 import Bio.SeqUtils
+import utils as ut
 
 # Functions
 entry_delete_dict = {'has_run': False}
 
-def say_hello():
-	messagebox.showinfo('You need help?', "No help to give I'm afraid!")
 
 def MouseClick(event):
 	print('The mouse was clicked')
@@ -158,7 +156,7 @@ menubar.add_cascade(label='File', menu=filemenu)
 
 # Help dropdown
 helpmenu = Menu(menubar, tearoff=0)
-helpmenu.add_command(label='Help!', command=say_hello)
+helpmenu.add_command(label='Help!', command=ut.say_hello)
 menubar.add_cascade(label='Help', menu=helpmenu)
 
 root.config(menu=menubar)

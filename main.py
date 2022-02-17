@@ -15,12 +15,14 @@ from Bio.SeqUtils import GC
 import Bio.SeqUtils
 
 
-# Functions
+
+# =================================================================================
+# Dictionary to keep track of what functions have run
 
 run_list_dict = {'input_deleted': False,
 				'plotter_open': False}
 
-
+# Functions
 
 def say_hello():
 	messagebox.showinfo('You need help?', "No help to give I'm afraid!")
@@ -130,15 +132,50 @@ def search_button():
 	if choice == 1:
 		search_motif()
 	elif choice == 2:
-		kmer_num = kmer_spin.get()
-		print(kmer_num)
+		search_kmer()
+	else:
+		messagebox.showinfo('Error', 'Please select a search parameter.')
+		
 
 
 # THIS NEEDS TO RETRIEVE THE KMER NUMBER FROM THE SPINWHEEL AND SEARCH THE SEQUENCE FOR ALL KMERS OF THAT LENGTH
 # AS WELL AS GIVING THE MOST POPULAR KMER. (POSSIBLY HIGHLIGHTING THEM SIMILAR TO MOTIF SEARCH)
 def search_kmer():
-	pass
+	k = int(kmer_spin.get())
+	input_string = input_txt.get('1.0', END).strip().upper()
+	kmer_names = frequent_words(input_string, k)[0]
+	kmer_frequency = frequent_words(input_string, k)[1]
+	
+	kmer_output_string = f'The most common {k}-mer is "{kmer_names[0]}" which was found: {kmer_frequency} times.'
+	if len(kmer_names) == 1:
+		text_inserter(output_txt, kmer_output_string)
 
+	elif len(kmer_names) > 1:
+		kmer_output_extra = f'Other {k}-mers found an equal number of times... \n\n{kmer_names[1:]}'
+		kmer_output_string = kmer_output_string + '\n\n' + kmer_output_extra
+		text_inserter(output_txt, kmer_output_string)
+
+
+
+def frequency_map(text, k):
+	freq = {}
+	n = len(text)
+	for i in range(n - k +1):
+		pattern = text[i:i + k]
+		if not pattern in freq:
+			freq[pattern] = 1
+		else:
+			freq[pattern] += 1
+	return freq
+
+def frequent_words(text, k):
+	words = []
+	freq_map = frequency_map(text, k)
+	max_val = max(freq_map.values())
+	for key in freq_map:
+		if freq_map[key] == max_val:
+			words.append(key)
+	return words, max_val
 
 # THIS IS TO BE TAKEN OUT AND MADE INTO SEPARATE FILE FOR ALL FUNCTIONS.
 def pattern_count(text, pattern):
@@ -154,19 +191,53 @@ def search_motif():
 	motif = motif_entry.get().strip().upper()
 	clean_motif = False
 
-	for letter in motif:
-		if letter not in 'ACGT':
-			messagebox.showinfo('Motif input error', 'Please only enter base nucleotide letters: A,C,G or T')
-		else:
-			clean_motif = True
+	if len(input_string) > 0:
+		for letter in motif:
+			if letter not in 'ACGT':
+				messagebox.showinfo('Motif input error', 'Please only enter base nucleotide letters: A,C,G or T')
+				return
+			else:
+				clean_motif = True
+				motif_count = pattern_count(input_string, motif)
+				motif_string = f'The motif {motif} is found {motif_count} times in the the sequence starting: "{input_intro}...".\n\n' + input_string
+				text_inserter(output_txt, motif_string)
+				# output_txt.config(state='normal')
+				# highlighter(motif)
+	elif len(input_string) == 0:
+		messagebox.showinfo('Search error', 'Please enter a motif.')
 
-	motif_count = pattern_count(input_string, motif)
+def save_output_file():
+	pass
+
 
 	# ADD IN AND LEARN ABOUT TEXTBOX TAGMARKS, TAGGING AT THE LOCATIONS OF THE MOTIF INDEXES
 	# THEN CHANGE ALL THE FONT COLOURS (AND LOWERCASE) FOR ALL THE TAGS?
 
-	motif_string = f'The motif {motif} is found {motif_count} times in the the sequence starting: "{input_intro}...".\n\n' + input_string
-	text_inserter(output_txt, motif_string)
+# def hi1(motif):
+# 	location = output_txt.search(motif, '1.0', END)
+# 	print(location)
+
+# 	output_txt.tag_add('highlight', '1.0', '1.11')
+# 	output_txt.tag_config('highlight', foreground='red')
+
+
+# def highlighter(motif):
+
+# 	output_txt.tag_config('highlight', foreground='red')
+# 	offset = '+%dc' % len(motif)
+
+# 	start_pos = input_txt.find(motif, '1.0', END)
+
+# 	while start_pos:
+# 		end_pos = start_pos + offset
+# 		print(start_pos, end_pos)
+# 		input_txt.tag_add('highlight', start_pos, end_pos)
+# 		start_pos = input_txt.find(motif, end_pos, END)
+
+
+
+# =================================================================================
+# =================================================================================
 
 
 root = Tk()
