@@ -13,6 +13,7 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqUtils import GC
 import Bio.SeqUtils
+import re
 
 
 
@@ -149,6 +150,7 @@ def search_kmer():
 	kmer_output_string = f'The most common {k}-mer is "{kmer_names[0]}" which was found: {kmer_frequency} times.'
 	if len(kmer_names) == 1:
 		text_inserter(output_txt, kmer_output_string)
+		# ADD IN THE COORDINATE SEARCHER TO FIND THE MOST POPULAR KMER MOTIF AND HIGHLIGHT THROUGH THE SAME FUNCTIONS AS THE SEARCH MOTIF.
 
 	elif len(kmer_names) > 1:
 		kmer_output_extra = f'Other {k}-mers found an equal number of times... \n\n{kmer_names[1:]}'
@@ -199,40 +201,55 @@ def search_motif():
 			else:
 				clean_motif = True
 				motif_count = pattern_count(input_string, motif)
-				motif_string = f'The motif {motif} is found {motif_count} times in the the sequence starting: "{input_intro}...".\n\n' + input_string
-				text_inserter(output_txt, motif_string)
+				modified_string = input_string
+				modified_string = modified_string.replace(motif, motif.lower())
+				motif_string = f'The motif {motif} is found {motif_count} times in the the sequence starting: "{input_intro}...".\n\n'
+				text_inserter(output_txt, motif_string + modified_string)
+				highlighter(motif, len(motif_string))
+				return
 				# output_txt.config(state='normal')
-				# highlighter(motif)
 	elif len(input_string) == 0:
 		messagebox.showinfo('Search error', 'Please enter a motif.')
 
+def find_motif_coord(motif):
+	input_string = input_txt.get('1.0', END).strip().upper()
+	
+	# finds all occurences of motif in the input string, turns them into a list.
+	motif_coord = [_.start() for _ in re.finditer(motif, input_string)]
+	multi_coord = []
+	for x in motif_coord:
+		multi_coord.append((x, x+len(motif)))
+
+	return multi_coord
+
+
+
 def save_output_file():
-	pass
+	file_types = [('All files', '*'), ('Text document', '*.txt'), ('FASTA', '*.fasta')]
+	file = fd.asksaveasfile(mode='w', filetypes=file_types, defaultextension=file_types)
+	# In case the user jumps out before fully saving.
+	if file is None:
+		return
+
+	output_data = output_txt.get('1.0', END)
+	output_intro = f'Analysis report:\n'
+	file.write(output_intro + output_data)
+	file.close()	
 
 
 	# ADD IN AND LEARN ABOUT TEXTBOX TAGMARKS, TAGGING AT THE LOCATIONS OF THE MOTIF INDEXES
 	# THEN CHANGE ALL THE FONT COLOURS (AND LOWERCASE) FOR ALL THE TAGS?
 
-# def hi1(motif):
-# 	location = output_txt.search(motif, '1.0', END)
-# 	print(location)
+def highlighter(motif, offset):
+	coords = find_motif_coord(motif)
 
-# 	output_txt.tag_add('highlight', '1.0', '1.11')
-# 	output_txt.tag_config('highlight', foreground='red')
+	for i, j in coords:
+		# print(i,j)
+		co_start = f'1.0 + {i+offset} chars'
+		co_end = f'1.0 + {j+offset} chars'
+		output_txt.tag_add('highlight', co_start, co_end)
+		output_txt.tag_config('highlight', foreground='red')
 
-
-# def highlighter(motif):
-
-# 	output_txt.tag_config('highlight', foreground='red')
-# 	offset = '+%dc' % len(motif)
-
-# 	start_pos = input_txt.find(motif, '1.0', END)
-
-# 	while start_pos:
-# 		end_pos = start_pos + offset
-# 		print(start_pos, end_pos)
-# 		input_txt.tag_add('highlight', start_pos, end_pos)
-# 		start_pos = input_txt.find(motif, end_pos, END)
 
 
 
@@ -254,7 +271,7 @@ search_var.set(1)
 menubar = Menu(root)
 filemenu = Menu(menubar, tearoff=0)
 filemenu.add_command(label='Add file', command=open_file)
-filemenu.add_command(label='Save output')
+filemenu.add_command(label='Save output', command=save_output_file)
 filemenu.add_separator()
 filemenu.add_command(label='Quit', command=root.quit)
 menubar.add_cascade(label='File', menu=filemenu)
